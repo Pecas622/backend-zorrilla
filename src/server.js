@@ -5,6 +5,7 @@ import { Server as ServerIo } from 'socket.io';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import viewsRouter from './routes/views.router.js';
+import ManagerProducts from './managers/managerProductos.js';  // Aquí importamos la clase ManagerProducts
 
 const app = express();
 const httpServer = new HttpServer(app);
@@ -34,16 +35,39 @@ app.use(socketMidd(io));
 
 // Rutas
 app.use('/', viewsRouter);
-app.use('/api/products', () => {});
-app.use('/api/carts', () => {});
+
+// Instanciamos el Manager de productos
+const productManager = new ManagerProducts();
 
 // Conexión de WebSocket para la ruta "/realtimeproducts"
-io.on('connection', (socket) => {
-    console.log('Cliente conectado');
-    // Enviar productos cuando el cliente se conecta
-    socket.emit('updateProducts', [{ name: 'Yerba Playadito', price: 850 }, { name: 'Mate', price: 500 }]);
+app.get('/realtimeproducts', (req, res) => {
+    res.render('realtimeproducts');  // Renderizar vista de productos en tiempo real
 });
 
+io.on('connection', (socket) => {
+    console.log('Cliente conectado a WebSocket');
+
+    // Enviar los productos actuales al cliente
+    socket.emit('updateProducts', productManager.getProducts());
+    
+    // Escuchar el evento 'addProduct' desde el cliente
+    socket.on('addProduct', (newProduct) => {
+        productManager.createProduct(newProduct);  // Llamamos a crear un producto
+        io.emit('updateProducts', productManager.getProducts());  // Emitir productos actualizados
+    });
+
+    // Escuchar el evento 'deleteProduct' desde el cliente
+    socket.on('deleteProduct', (productId) => {
+        productManager.deleteProduct(productId);  // Llamamos a eliminar el producto
+        io.emit('updateProducts', productManager.getProducts());  // Emitir productos actualizados
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Cliente desconectado');
+    });
+});
+
+// Configuración del servidor
 httpServer.listen(8080, (err) => {
     if (err) {
         console.error('No se pudo iniciar el servidor: ', err);

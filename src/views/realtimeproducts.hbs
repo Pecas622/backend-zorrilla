@@ -3,30 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Productos en tiempo real</title>
-    <link rel="stylesheet" href="./styles.css">
+    <title>Productos en Tiempo Real</title>
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-
-        socket.on('updateProducts', (products) => {
-            const productList = document.getElementById('productList');
-            productList.innerHTML = ''; // Limpiamos la lista
-
-            products.forEach((product) => {
-                const li = document.createElement('li');
-                li.textContent = `${product.name} - $${product.price}`;
-                productList.appendChild(li);
-            });
-        });
-    </script>
 </head>
 <body>
-    <div class="container">
-        <h1>Productos en tiempo real</h1>
-        <ul id="productList">
-            <!-- Aquí se agregarán los productos enviados desde WebSocket -->
-        </ul>
-    </div>
+    <h1>Productos en Tiempo Real</h1>
+
+    <!-- Formulario para agregar un producto -->
+    <form id="product-form">
+        <input type="text" id="product-name" placeholder="Nombre del producto" required />
+        <input type="number" id="product-price" placeholder="Precio" required />
+        <button type="submit">Agregar Producto</button>
+    </form>
+
+    <!-- Lista de productos -->
+    <ul id="product-list"></ul>
+
+    <!-- JavaScript para interactuar con WebSocket y manejar el formulario -->
+    <script>
+        const socket = io(); // Conectar con el servidor WebSocket
+
+        // Escuchar la actualización de productos
+        socket.on('updateProducts', (products) => {
+            const productList = document.getElementById('product-list');
+            productList.innerHTML = ''; // Limpiar la lista
+
+            // Mostrar cada producto recibido en el WebSocket
+            products.forEach(product => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${product.name} - $${product.price}`;
+
+                // Crear botón de eliminar
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Eliminar';
+                deleteButton.setAttribute('data-id', product.id); // Asignar el ID del producto
+
+                // Agregar el botón de eliminar al producto
+                listItem.appendChild(deleteButton);
+
+                // Agregar el producto con el botón de eliminar a la lista
+                productList.appendChild(listItem);
+
+                // Manejar la eliminación del producto
+                deleteButton.addEventListener('click', () => {
+                    const productId = deleteButton.getAttribute('data-id');
+
+                    // Emitir el evento para eliminar el producto
+                    socket.emit('deleteProduct', productId);
+                });
+            });
+        });
+
+        // Manejar el formulario de agregar productos
+        const form = document.getElementById('product-form');
+        form.addEventListener('submit', (event) => {
+            event.preventDefault(); // Prevenir el envío del formulario
+
+            const productName = document.getElementById('product-name').value;
+            const productPrice = document.getElementById('product-price').value;
+
+            // Emitir el nuevo producto al servidor
+            socket.emit('addProduct', {
+                name: productName,
+                price: productPrice
+            });
+
+            // Limpiar el formulario
+            form.reset();
+        });
+    </script>
 </body>
 </html>
